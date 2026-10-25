@@ -1,0 +1,11 @@
+[project]
+name = "diagnostic-platform-api"
+version = "1.0.0"
+description = "Diagnostic Testing Platform FastAPI foundation"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--strict-markers"
+markers = ["mysql: opt-in, read-only checks against local MySQL"]

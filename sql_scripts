@@ -1,0 +1,199 @@
+
+CREATE DATABASE IF NOT EXISTS diagnostic_platform
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_0900_ai_ci;
+
+USE diagnostic_platform;
+
+-- 1. PATIENTS
+CREATE TABLE IF NOT EXISTS patients (
+    patient_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(150) NOT NULL,
+    email VARCHAR(255) UNIQUE,
+    phone VARCHAR(20) NOT NULL,
+    date_of_birth DATE,
+    gender VARCHAR(20),
+    address TEXT,
+    district VARCHAR(100),
+    pincode VARCHAR(10),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- 2. LABORATORIES
+CREATE TABLE IF NOT EXISTS laboratories (
+    lab_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    lab_name VARCHAR(200) NOT NULL,
+    contact_person VARCHAR(150),
+    phone VARCHAR(20),
+    email VARCHAR(255),
+    address TEXT,
+    district VARCHAR(100),
+    pincode VARCHAR(10),
+    accreditation_number VARCHAR(100),
+    status ENUM('PENDING','ACTIVE','INACTIVE')
+        DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- 3. DIAGNOSTIC TESTS
+CREATE TABLE IF NOT EXISTS diagnostic_tests (
+    test_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    test_name VARCHAR(200) NOT NULL,
+    test_code VARCHAR(50) NOT NULL UNIQUE,
+    category VARCHAR(100),
+    description TEXT,
+    sample_type VARCHAR(100),
+    platform_price DECIMAL(10,2) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. LAB TEST PRICES
+CREATE TABLE IF NOT EXISTS lab_test_prices (
+    lab_test_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    lab_id BIGINT NOT NULL,
+    test_id BIGINT NOT NULL,
+    lab_price DECIMAL(10,2) NOT NULL,
+    is_available BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uq_lab_test (lab_id, test_id),
+
+    FOREIGN KEY (lab_id)
+        REFERENCES laboratories(lab_id),
+
+    FOREIGN KEY (test_id)
+        REFERENCES diagnostic_tests(test_id)
+);
+
+-- 5. PRESCRIPTIONS
+CREATE TABLE IF NOT EXISTS prescriptions (
+    prescription_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    patient_id BIGINT NOT NULL,
+    doctor_name VARCHAR(150),
+    prescription_file_url VARCHAR(1000),
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (patient_id)
+        REFERENCES patients(patient_id)
+);
+
+-- 6. BOOKINGS
+CREATE TABLE IF NOT EXISTS bookings (
+    booking_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    patient_id BIGINT NOT NULL,
+    lab_id BIGINT,
+    prescription_id BIGINT,
+    booking_date DATETIME NOT NULL,
+    collection_type ENUM('HOME','LAB') NOT NULL,
+    booking_status ENUM(
+        'PENDING',
+        'CONFIRMED',
+        'SAMPLE_COLLECTED',
+        'COMPLETED',
+        'CANCELLED'
+    ) DEFAULT 'PENDING',
+    total_amount DECIMAL(10,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (patient_id)
+        REFERENCES patients(patient_id),
+
+    FOREIGN KEY (lab_id)
+        REFERENCES laboratories(lab_id),
+
+    FOREIGN KEY (prescription_id)
+        REFERENCES prescriptions(prescription_id)
+);
+
+-- 7. BOOKING TESTS
+CREATE TABLE IF NOT EXISTS booking_tests (
+    booking_test_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    booking_id BIGINT NOT NULL,
+    test_id BIGINT NOT NULL,
+    price_at_booking DECIMAL(10,2) NOT NULL,
+
+    UNIQUE KEY uq_booking_test (booking_id, test_id),
+
+    FOREIGN KEY (booking_id)
+        REFERENCES bookings(booking_id),
+
+    FOREIGN KEY (test_id)
+        REFERENCES diagnostic_tests(test_id)
+);
+
+-- 8. SAMPLE COLLECTIONS
+CREATE TABLE IF NOT EXISTS sample_collections (
+    collection_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    booking_id BIGINT NOT NULL,
+    collector_name VARCHAR(150),
+    collector_phone VARCHAR(20),
+    scheduled_time DATETIME,
+    collected_time DATETIME,
+    collection_status ENUM(
+        'SCHEDULED',
+        'ASSIGNED',
+        'COLLECTED',
+        'DELIVERED',
+        'CANCELLED'
+    ) DEFAULT 'SCHEDULED',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (booking_id)
+        REFERENCES bookings(booking_id)
+);
+
+-- 9. PAYMENTS
+CREATE TABLE IF NOT EXISTS payments (
+    payment_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    booking_id BIGINT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    payment_method ENUM(
+        'UPI',
+        'CARD',
+        'CASH',
+        'NET_BANKING'
+    ),
+    payment_status ENUM(
+        'PENDING',
+        'SUCCESS',
+        'FAILED',
+        'REFUNDED'
+    ) DEFAULT 'PENDING',
+    transaction_reference VARCHAR(255) UNIQUE,
+    paid_at DATETIME,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (booking_id)
+        REFERENCES bookings(booking_id)
+);
+
+-- 10. DIAGNOSTIC REPORTS
+CREATE TABLE IF NOT EXISTS diagnostic_reports (
+    report_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    booking_id BIGINT NOT NULL,
+    test_id BIGINT NOT NULL,
+    lab_id BIGINT NOT NULL,
+    report_file_url VARCHAR(1000),
+    report_status ENUM(
+        'PENDING',
+        'PROCESSING',
+        'READY'
+    ) DEFAULT 'PENDING',
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (booking_id)
+        REFERENCES bookings(booking_id),
+
+    FOREIGN KEY (test_id)
+        REFERENCES diagnostic_tests(test_id),
+
+    FOREIGN KEY (lab_id)
+        REFERENCES laboratories(lab_id)
+);
+
+
